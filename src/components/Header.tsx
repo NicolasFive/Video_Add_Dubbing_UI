@@ -21,12 +21,6 @@ export default function Header() {
             >
               首页
             </Link>
-            <Link 
-              href="/history" 
-              className="text-gray-600 hover:text-primary-600 transition-colors"
-            >
-              历史记录
-            </Link>
             <a 
               href="https://github.com" 
               target="_blank" 
