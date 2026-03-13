@@ -4,8 +4,8 @@ import { submitDubbingTask } from '@/lib/api';
 import type { Task } from '@/lib/types';
 
 interface SubmitUploadParams {
-  file: File;
-  fileType: 'video' | 'audio';
+  videoFile?: File;
+  audioFile?: File;
   voiceType: string;
 }
 
@@ -17,17 +17,21 @@ interface UseUploadReturn {
 export function useUpload(): UseUploadReturn {
   const [isUploading, setIsUploading] = useState(false);
 
-  const submitUpload = async ({ file, fileType, voiceType }: SubmitUploadParams): Promise<Task> => {
+  const submitUpload = async ({ videoFile, audioFile, voiceType }: SubmitUploadParams): Promise<Task> => {
     setIsUploading(true);
 
     try {
       const taskId = uuidv4();
       const response = await submitDubbingTask(
-        fileType === 'video' ? file : undefined,
-        fileType === 'audio' ? file : undefined,
+        videoFile,
+        audioFile,
         voiceType,
         taskId
       );
+
+      const sourceFileName = videoFile && audioFile
+        ? `${videoFile.name} + ${audioFile.name}`
+        : videoFile?.name || audioFile?.name;
 
       return {
         task_id: response.task_id,
@@ -36,7 +40,7 @@ export function useUpload(): UseUploadReturn {
         current_step: '待处理',
         created_at: response.created_at,
         updated_at: new Date().toISOString(),
-        source_file_name: file.name,
+        source_file_name: sourceFileName,
       };
     } finally {
       setIsUploading(false);

@@ -13,41 +13,43 @@ interface UploadSectionProps {
 }
 
 export default function UploadSection({ onTaskSubmit }: UploadSectionProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileType, setFileType] = useState<'video' | 'audio'>('video');
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
   const [voiceType, setVoiceType] = useState('zh_female_meilinvyou');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const { isUploading, submitUpload } = useUpload();
 
-  const handleFileSelect = (file: File) => {
-    setSelectedFile(file);
-    // 根据文件类型自动设置
-    if (file.type.startsWith('audio/')) {
-      setFileType('audio');
-    } else if (file.type.startsWith('video/')) {
-      setFileType('video');
-    }
+  const handleVideoFileSelect = (file: File) => {
+    setSelectedVideoFile(file);
+  };
+
+  const handleAudioFileSelect = (file: File) => {
+    setSelectedAudioFile(file);
   };
 
   const handleReset = () => {
-    setSelectedFile(null);
-    setFileType('video');
+    setSelectedVideoFile(null);
+    setSelectedAudioFile(null);
     setVoiceType('zh_female_meilinvyou');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (videoInputRef.current) {
+      videoInputRef.current.value = '';
+    }
+    if (audioInputRef.current) {
+      audioInputRef.current.value = '';
     }
   };
 
   const handleSubmit = async () => {
-    if (!selectedFile) {
-      showToast('请选择要上传的文件', 'error');
+    if (!selectedVideoFile && !selectedAudioFile) {
+      showToast('请至少选择一个视频或音频文件', 'error');
       return;
     }
 
     try {
       const task: Task = await submitUpload({
-        file: selectedFile,
-        fileType,
+        videoFile: selectedVideoFile || undefined,
+        audioFile: selectedAudioFile || undefined,
         voiceType,
       });
 
@@ -70,37 +72,32 @@ export default function UploadSection({ onTaskSubmit }: UploadSectionProps) {
 
       <div className="space-y-6">
         {/* 文件上传区域 */}
-        <FileUpload
-          ref={fileInputRef}
-          accept="video/*,audio/*"
-          onFileSelect={handleFileSelect}
-          selectedFile={selectedFile}
-        />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <h3 className="text-base font-medium text-gray-800">上传视频</h3>
+            <FileUpload
+              id="video-upload"
+              ref={videoInputRef}
+              accept="video/*"
+              title="拖拽视频到这里，或点击选择"
+              description="支持常见视频格式"
+              onFileSelect={handleVideoFileSelect}
+              selectedFile={selectedVideoFile}
+            />
+          </div>
 
-        {/* 文件类型选择 */}
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="radio"
-              name="fileType"
-              value="video"
-              checked={fileType === 'video'}
-              onChange={() => setFileType('video')}
-              className="w-4 h-4 text-primary-600"
+          <div className="space-y-2">
+            <h3 className="text-base font-medium text-gray-800">上传音频（可选）</h3>
+            <FileUpload
+              id="audio-upload"
+              ref={audioInputRef}
+              accept="audio/*"
+              title="拖拽音频到这里，或点击选择"
+              description="支持常见音频格式"
+              onFileSelect={handleAudioFileSelect}
+              selectedFile={selectedAudioFile}
             />
-            <span className="text-gray-700">视频文件</span>
-          </label>
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="radio"
-              name="fileType"
-              value="audio"
-              checked={fileType === 'audio'}
-              onChange={() => setFileType('audio')}
-              className="w-4 h-4 text-primary-600"
-            />
-            <span className="text-gray-700">音频文件</span>
-          </label>
+          </div>
         </div>
 
         {/* 语音类型选择 */}
@@ -128,7 +125,7 @@ export default function UploadSection({ onTaskSubmit }: UploadSectionProps) {
           <Button
             size="lg"
             onClick={handleSubmit}
-            disabled={!selectedFile || isUploading}
+            disabled={(!selectedVideoFile && !selectedAudioFile) || isUploading}
             loading={isUploading}
             className="w-full md:w-auto"
           >

@@ -1,17 +1,28 @@
 'use client';
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useId, useState } from 'react';
 import { formatFileSize } from '@/lib/utils';
 
 interface FileUploadProps {
+	id?: string;
 	accept?: string;
+	title?: string;
+	description?: string;
 	selectedFile: File | null;
 	onFileSelect: (file: File) => void;
 }
 
 const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
-	({ accept = 'video/*,audio/*', selectedFile, onFileSelect }, ref) => {
+	({
+		id,
+		accept = 'video/*,audio/*',
+		title = '拖拽文件到这里，或点击选择文件',
+		description = '支持视频和音频文件',
+		selectedFile,
+		onFileSelect,
+	}, ref) => {
 		const [isDragging, setIsDragging] = useState(false);
+		const inputId = id ?? `media-upload-${useId()}`;
 
 		const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 			const file = event.target.files?.[0];
@@ -33,14 +44,14 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
 			<div>
 				<input
 					ref={ref}
-					id="media-upload"
+					id={inputId}
 					type="file"
 					accept={accept}
 					className="hidden"
 					onChange={handleInputChange}
 				/>
 				<label
-					htmlFor="media-upload"
+					htmlFor={inputId}
 					onDragOver={(event) => {
 						event.preventDefault();
 						setIsDragging(true);
@@ -56,9 +67,9 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
 				>
 					<span className="text-4xl">📤</span>
 					<p className="mt-3 text-base font-medium text-gray-800">
-						拖拽文件到这里，或点击选择文件
+						{title}
 					</p>
-					<p className="mt-1 text-sm text-gray-500">支持视频和音频文件</p>
+					<p className="mt-1 text-sm text-gray-500">{description}</p>
 
 					{selectedFile && (
 						<div className="mt-4 w-full rounded-lg border border-gray-200 bg-white p-3 text-left">
