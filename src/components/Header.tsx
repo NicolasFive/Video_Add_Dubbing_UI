@@ -22,7 +22,7 @@ export default function Header() {
               首页
             </Link>
             <a 
-              href="https://github.com" 
+              href="https://github.com/NicolasFive/Video_Add_Dubbing_UI" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-gray-600 hover:text-primary-600 transition-colors"
