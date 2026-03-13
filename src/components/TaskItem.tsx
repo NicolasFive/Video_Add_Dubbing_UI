@@ -46,7 +46,7 @@ export default function TaskItem({ task, onClick }: TaskItemProps) {
         {/* 进度条 */}
         <div className="mt-2">
           <div className="flex items-center justify-between text-sm text-gray-500 mb-1">
-            <span>{task.current_step || '等待开始'}</span>
+            <span>{task.current_step}</span>
             <span>{task.progress}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">

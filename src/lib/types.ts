@@ -60,8 +60,9 @@ export interface Task {
 
 // 语音类型选项
 export const VOICE_TYPES = [
-  { value: 'zh_female_meilinvyou', label: '女声 - 美玲' },
-  { value: 'zh_female_xiaoyan', label: '女声 - 小燕' },
-  { value: 'zh_male_yunyang', label: '男声 - 云扬' },
-  { value: 'zh_male_yunxi', label: '男声 - 云希' },
+  { value: 'zh_male_beijingxiaoye_emo_v2_mars_bigtts', label: '男声 - 北京小爷（多情感）' },
+  { value: 'zh_male_jingqiangkanye_emo_mars_bigtts', label: '男声 - 京腔侃爷（多情感）' },
+  { value: 'zh_male_guangzhoudege_emo_mars_bigtts', label: '男声 - 广州德哥（多情感）' },
+  { value: 'ICL_zh_male_menyoupingxiaoge_ffed9fc2fee7_tob', label: '男声 - 闷油瓶小哥' },
+  { value: 'ICL_zh_male_neiliancaijun_e991be511569_tob', label: '男声 - 内敛才俊' },
 ];

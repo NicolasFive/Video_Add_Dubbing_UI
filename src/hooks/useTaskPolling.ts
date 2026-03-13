@@ -40,6 +40,7 @@ export function useTaskPolling({
   
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = useRef<number>(0);
+  const pollingInitiatedRef = useRef<string | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -111,12 +112,13 @@ export function useTaskPolling({
     };
   }, [stopPolling]);
 
-  // 当taskId变化时重新开始
+  // 当taskId变化时重新开始（只启动一次，避免因 isPolling 变化反复重启）
   useEffect(() => {
-    if (taskId && !isPolling) {
+    if (taskId && pollingInitiatedRef.current !== taskId) {
+      pollingInitiatedRef.current = taskId;
       startPolling();
     }
-  }, [taskId, isPolling, startPolling]);
+  }, [taskId, startPolling]);
 
   return {
     isPolling,

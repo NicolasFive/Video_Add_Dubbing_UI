@@ -33,7 +33,7 @@ export default function Home() {
     setSelectedTask(task);
     if (task.status === 'success') {
       setShowResult(true);
-    } else if (task.status === 'processing' || task.status === 'pending') {
+    } else if (task.status === 'processing' || task.status === 'pending' || task.status === 'failed') {
       setShowProgress(true);
     }
   };

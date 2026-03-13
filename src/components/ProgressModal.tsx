@@ -36,7 +36,16 @@ export default function ProgressModal({ task, onComplete, onClose }: ProgressMod
       onComplete(updatedTask);
     },
     onError: (err) => {
-      console.error('轮询错误:', err);
+      // 任务出错，更新任务信息
+      const updatedTask: Task = {
+        ...task,
+        status: 'failed',
+        progress: 0,
+        current_step: null,
+        error_detail: err instanceof Error ? err.message : '未知错误',
+        updated_at: new Date().toISOString(),
+      };
+      onComplete(updatedTask);
     },
   });
 

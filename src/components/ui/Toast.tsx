@@ -53,13 +53,15 @@ export function showToast(message: string, type: ToastType = 'info', duration?: 
 
   if (!toastContainer) {
     const existingContainer = document.getElementById('toast-container');
-    toastContainer =
-      existingContainer instanceof HTMLDivElement
-        ? existingContainer
-        : document.createElement('div');
-    toastContainer.id = 'toast-container';
-    toastContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
-    document.body.appendChild(toastContainer);
+    if (existingContainer instanceof HTMLDivElement) {
+      // 复用 layout 中已有的容器，不移动或修改 React 管理的元素
+      toastContainer = existingContainer;
+    } else {
+      toastContainer = document.createElement('div');
+      toastContainer.id = 'toast-container';
+      toastContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
+      document.body.appendChild(toastContainer);
+    }
   }
 
   const toast = document.createElement('div');

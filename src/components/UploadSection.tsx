@@ -29,6 +29,15 @@ export default function UploadSection({ onTaskSubmit }: UploadSectionProps) {
     }
   };
 
+  const handleReset = () => {
+    setSelectedFile(null);
+    setFileType('video');
+    setVoiceType('zh_female_meilinvyou');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedFile) {
       showToast('请选择要上传的文件', 'error');
@@ -46,10 +55,7 @@ export default function UploadSection({ onTaskSubmit }: UploadSectionProps) {
       onTaskSubmit(task);
 
       // 重置表单
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      handleReset();
     } catch (error) {
       console.error('提交任务失败:', error);
       showToast('任务提交失败，请重试', 'error');
@@ -66,7 +72,7 @@ export default function UploadSection({ onTaskSubmit }: UploadSectionProps) {
         {/* 文件上传区域 */}
         <FileUpload
           ref={fileInputRef}
-          accept={fileType === 'video' ? 'video/*' : 'audio/*'}
+          accept="video/*,audio/*"
           onFileSelect={handleFileSelect}
           selectedFile={selectedFile}
         />
@@ -117,15 +123,27 @@ export default function UploadSection({ onTaskSubmit }: UploadSectionProps) {
           </select>
         </div>
 
-        {/* 提交按钮 */}
-        <Button
-          onClick={handleSubmit}
-          disabled={!selectedFile || isUploading}
-          loading={isUploading}
-          className="w-full md:w-auto px-8 py-3"
-        >
-          {isUploading ? '提交中...' : '开始翻译配音'}
-        </Button>
+        {/* 操作按钮 */}
+        <div className="flex flex-col gap-3 md:flex-row">
+          <Button
+            size="lg"
+            onClick={handleSubmit}
+            disabled={!selectedFile || isUploading}
+            loading={isUploading}
+            className="w-full md:w-auto"
+          >
+            {isUploading ? '正在提交任务...' : '提交任务'}
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={handleReset}
+            disabled={isUploading}
+            className="w-full md:w-auto px-8 py-3"
+          >
+            重置
+          </Button>
+        </div>
       </div>
     </section>
   );
