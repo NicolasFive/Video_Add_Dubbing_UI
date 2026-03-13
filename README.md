@@ -1,7 +1,8 @@
 # 听译加 - 视频翻译配音工具
 
 基于 Next.js + React + Tailwind CSS 构建的视频翻译配音前端应用。
-注意：须配合后端一起部署使用 [→点击跳转](https://github.com/NicolasFive/Video_Add_Dubbing_API.git)
+
+**注意：须配合后端一起部署使用**[→点击跳转←](https://github.com/NicolasFive/Video_Add_Dubbing_API.git)
 
 ## 功能特性
 
