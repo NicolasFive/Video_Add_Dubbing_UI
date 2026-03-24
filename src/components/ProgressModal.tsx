@@ -1,18 +1,44 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useTaskPolling } from '@/hooks/useTaskPolling';
-import type { Task } from '@/lib/types';
+import { downloadFile, getOptimizeData, getTaskResult, updateOptimizeData } from '@/lib/api';
+import type { Task, ResultFile } from '@/lib/types';
 import Modal from './ui/Modal';
 import ProgressBar from './ui/ProgressBar';
 import Button from './ui/Button';
+import { showToast } from './ui/Toast';
+import { formatDateTime, formatFileSize } from '@/lib/utils';
 
 interface ProgressModalProps {
   task: Task;
+  onProgress: (task: Task) => void;
   onComplete: (task: Task) => void;
   onClose: () => void;
 }
 
-export default function ProgressModal({ task, onComplete, onClose }: ProgressModalProps) {
+const STAGE_OPTIONS = [
+  { value: 'Translating', label: '翻译' },
+  { value: 'Building Subtitles', label: '生成字幕数据' },
+  { value: 'Optimizing Subtitles', label: '优化字幕数据' },
+  { value: 'Generating Subtitles', label: '生成字幕文件' },
+] as const;
+
+export default function ProgressModal({ task, onProgress, onComplete, onClose }: ProgressModalProps) {
+  const [files, setFiles] = useState<ResultFile[]>([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+  const [selectedStage, setSelectedStage] = useState<string>('');
+  const [stageData, setStageData] = useState<string>('');
+  const [showStageData, setShowStageData] = useState(false);
+  const [isQueryingStage, setIsQueryingStage] = useState(false);
+  const [isUpdatingStage, setIsUpdatingStage] = useState(false);
+  const onProgressRef = useRef(onProgress);
+
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+  }, [onProgress]);
+
   const {
     isPolling,
     progress,
@@ -22,35 +48,144 @@ export default function ProgressModal({ task, onComplete, onClose }: ProgressMod
     stopPolling,
   } = useTaskPolling({
     taskId: task.task_id,
-    onProgress: () => {},
-    onComplete: async (resultData) => {
+    onProgress: (statusData) => {
+      onProgress({
+        ...task,
+        status: statusData.status,
+        progress: statusData.progress,
+        current_step: statusData.current_step,
+        error_detail: statusData.error_detail,
+        video_url: statusData.video_url,
+        subtitle_url: statusData.subtitle_url,
+        updated_at: new Date().toISOString(),
+      });
+    },
+    onComplete: async (statusData) => {
       // 任务完成，更新任务信息
       const updatedTask: Task = {
         ...task,
-        status: resultData.status,
-        progress: resultData.progress,
-        current_step: resultData.current_step,
-        files: resultData.files,
+        status: statusData.status,
+        progress: statusData.progress,
+        current_step: statusData.current_step,
         updated_at: new Date().toISOString(),
       };
       onComplete(updatedTask);
     },
-    onError: (err) => {
+    onError: (err, latestStatus) => {
       // 任务出错，更新任务信息
       const updatedTask: Task = {
         ...task,
-        status: 'failed',
-        progress: 0,
-        current_step: null,
-        error_detail: err instanceof Error ? err.message : '未知错误',
+        status: latestStatus?.status || 'failed',
+        progress: latestStatus?.progress ?? task.progress,
+        current_step: latestStatus?.current_step ?? task.current_step,
+        error_detail: latestStatus?.error_detail || (err instanceof Error ? err.message : '未知错误'),
+        video_url: latestStatus?.video_url ?? task.video_url,
+        subtitle_url: latestStatus?.subtitle_url ?? task.subtitle_url,
         updated_at: new Date().toISOString(),
       };
       onComplete(updatedTask);
     },
   });
 
+  const displayStatus = isPolling ? status : task.status;
+  const displayProgress = isPolling ? progress : task.progress;
+  const displayStep = isPolling ? currentStep : task.current_step;
+
+  useEffect(() => {
+    const fetchResult = async () => {
+      setIsLoadingFiles(true);
+      try {
+        const result = await getTaskResult(task.task_id);
+        const updatedTask: Task = {
+          ...task,
+          status: result.status,
+          progress: result.progress,
+          current_step: result.current_step,
+          updated_at: new Date().toISOString(),
+        };
+        setFiles(result.files || []);
+        onProgressRef.current(updatedTask);
+      } catch (fetchError) {
+        console.error('获取结果失败:', fetchError);
+        showToast('获取结果失败', 'error');
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    };
+
+    fetchResult();
+  }, [task.task_id]);
+
+  const handleDownload = async (file: ResultFile) => {
+    setDownloadingFile(file.file_name);
+    try {
+      const blob = await downloadFile(task.task_id, file.relative_path);
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast('下载成功', 'success');
+    } catch (downloadError) {
+      console.error('下载失败:', downloadError);
+      showToast('下载失败，请重试', 'error');
+    } finally {
+      setDownloadingFile(null);
+    }
+  };
+
+  const handleQueryStageData = async () => {
+    if (!selectedStage) {
+      showToast('请先选择流程节点', 'error');
+      return;
+    }
+
+    setIsQueryingStage(true);
+    try {
+      const result = await getOptimizeData(task.task_id, selectedStage);
+      setStageData(result.data || '');
+      setShowStageData(true);
+      showToast('查询成功', 'success');
+    } catch (queryError) {
+      console.error('查询流程节点数据失败:', queryError);
+      showToast('查询失败，请重试', 'error');
+    } finally {
+      setIsQueryingStage(false);
+    }
+  };
+
+  const handleUpdateStageData = async () => {
+    if (!selectedStage) {
+      showToast('请先选择流程节点', 'error');
+      return;
+    }
+
+    if (!stageData.trim()) {
+      showToast('data 不能为空', 'error');
+      return;
+    }
+
+    setIsUpdatingStage(true);
+    try {
+      await updateOptimizeData(task.task_id, selectedStage, stageData);
+      showToast('更新成功', 'success');
+      setShowStageData(false);
+      setStageData('');
+    } catch (updateError) {
+      console.error('更新流程节点数据失败:', updateError);
+      showToast('更新失败，请重试', 'error');
+    } finally {
+      setIsUpdatingStage(false);
+    }
+  };
+
   // 状态映射
-  const statusText = {
+  const statusText: Record<string, string> = {
     pending: '等待处理',
     processing: '处理中',
     success: '处理完成',
@@ -62,40 +197,22 @@ export default function ProgressModal({ task, onComplete, onClose }: ProgressMod
     <Modal
       isOpen={true}
       onClose={onClose}
-      title="任务处理进度"
-      size="md"
+      title="任务处理详情"
+      size="lg"
     >
       <div className="space-y-6">
         {/* 任务信息 */}
-        <div className="text-center">
+        <div className="text-left">
           <p className="text-sm text-gray-500">任务ID</p>
-          <p className="font-mono text-xs text-gray-400 break-all">
-            {task.task_id}
-          </p>
+          <p className="font-mono text-xs text-gray-400 break-all">{task.task_id}</p>
         </div>
 
         {/* 进度条 */}
         <ProgressBar
-          progress={progress}
-          status={status}
-          currentStep={currentStep}
+          progress={displayProgress}
+          status={displayStatus}
+          currentStep={`当前步骤：${displayStep}`}
         />
-
-        {/* 状态文本 */}
-        <div className="text-center">
-          <p className={`text-lg font-medium ${
-            status === 'failed' ? 'text-red-600' :
-            status === 'success' ? 'text-green-600' :
-            'text-primary-600'
-          }`}>
-            {error ? error.message : statusText[status as keyof typeof statusText]}
-          </p>
-          {currentStep && (
-            <p className="text-sm text-gray-500 mt-1">
-              当前步骤：{currentStep}
-            </p>
-          )}
-        </div>
 
         {/* 错误信息 */}
         {error && (
@@ -104,23 +221,107 @@ export default function ProgressModal({ task, onComplete, onClose }: ProgressMod
           </div>
         )}
 
+        {/* 流程节点查询与更新 */}
+        <div className="p-4 border border-gray-200 rounded-lg space-y-4">
+          <p className="text-sm text-gray-500">流程节点</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select
+              className="w-full sm:flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={selectedStage}
+              onChange={(e) => {
+                setSelectedStage(e.target.value);
+                setShowStageData(false);
+                setStageData('');
+              }}
+            >
+              <option value="">请选择流程节点</option>
+              {STAGE_OPTIONS.map((stage) => (
+                <option key={stage.value} value={stage.value}>
+                  {stage.label}
+                </option>
+              ))}
+            </select>
+
+            <Button
+              onClick={handleQueryStageData}
+              loading={isQueryingStage}
+              disabled={!selectedStage || isUpdatingStage}
+            >
+              查询
+            </Button>
+          </div>
+
+          {showStageData && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm text-gray-600">流程数据</label>
+                <Button
+                  onClick={handleUpdateStageData}
+                  loading={isUpdatingStage}
+                  disabled={!selectedStage || isQueryingStage}
+                >
+                  更新
+                </Button>
+              </div>
+              <textarea
+                className="w-full min-h-100 p-3 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={stageData}
+                onChange={(e) => setStageData(e.target.value)}
+                placeholder="请输入 JSON 字符串"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 文件列表 */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">生成文件</h3>
+
+          {isLoadingFiles ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto" />
+              <p className="mt-2 text-gray-500">加载中...</p>
+            </div>
+          ) : files.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">暂无生成文件</div>
+          ) : (
+            <div className="space-y-3">
+              {files.map((file, index) => (
+                <div
+                  key={`${file.relative_path}-${index}`}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{file.file_name}</p>
+                    <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
+                      <span>{formatFileSize(file.size_bytes)}</span>
+                      <span>•</span>
+                      <span>{formatDateTime(file.updated_at)}</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={() => handleDownload(file)}
+                    disabled={downloadingFile === file.file_name}
+                    loading={downloadingFile === file.file_name}
+                    size="sm"
+                  >
+                    下载
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* 操作按钮 */}
         <div className="flex justify-center space-x-4 pt-4">
-          {status === 'failed' && (
-            <Button variant="secondary" onClick={onClose}>
-              关闭
-            </Button>
-          )}
-          {status === 'success' && (
-            <Button onClick={onClose}>
-              查看结果
-            </Button>
-          )}
           {isPolling && (
             <Button variant="secondary" onClick={stopPolling}>
               停止轮询
             </Button>
           )}
+          <Button onClick={onClose}>关闭</Button>
         </div>
       </div>
     </Modal>

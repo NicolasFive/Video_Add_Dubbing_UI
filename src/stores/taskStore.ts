@@ -18,6 +18,11 @@ interface TaskState {
 // localStorage key
 const STORAGE_KEY = 'tingyi-jia-tasks';
 
+const stripTaskFiles = (task: Task): Task => {
+  const { files: _files, ...rest } = task;
+  return rest;
+};
+
 export const useTaskStore = create<TaskState>()(
   persist(
     (set, get) => ({
@@ -25,19 +30,21 @@ export const useTaskStore = create<TaskState>()(
       currentTask: null,
 
       addTask: (task) => {
+        const normalizedTask = stripTaskFiles(task);
         set((state) => ({
-          tasks: [task, ...state.tasks],
-          currentTask: task,
+          tasks: [normalizedTask, ...state.tasks],
+          currentTask: normalizedTask,
         }));
       },
 
       updateTask: (task) => {
+        const normalizedTask = stripTaskFiles(task);
         set((state) => ({
           tasks: state.tasks.map((t) =>
-            t.task_id === task.task_id ? { ...t, ...task } : t
+            t.task_id === normalizedTask.task_id ? { ...t, ...normalizedTask } : t
           ),
-          currentTask: state.currentTask?.task_id === task.task_id 
-            ? { ...state.currentTask, ...task } 
+          currentTask: state.currentTask?.task_id === normalizedTask.task_id 
+            ? { ...state.currentTask, ...normalizedTask } 
             : state.currentTask,
         }));
       },
@@ -52,7 +59,7 @@ export const useTaskStore = create<TaskState>()(
       },
 
       setCurrentTask: (task) => {
-        set({ currentTask: task });
+        set({ currentTask: task ? stripTaskFiles(task) : null });
       },
 
       getTaskById: (taskId) => {
@@ -70,7 +77,11 @@ export const useTaskStore = create<TaskState>()(
     {
       name: STORAGE_KEY,
       // 版本控制 - 用于自动清理旧数据
-      version: 1,
+      version: 2,
+      partialize: (state) => ({
+        tasks: state.tasks.map(stripTaskFiles),
+        currentTask: state.currentTask ? stripTaskFiles(state.currentTask) : null,
+      }),
     }
   )
 );

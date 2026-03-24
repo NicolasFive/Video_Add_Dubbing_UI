@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getTaskStatus, getTaskResult } from '@/lib/api';
-import type { StatusResponse, ResultResponse } from '@/lib/types';
+import { getTaskStatus } from '@/lib/api';
+import type { StatusResponse } from '@/lib/types';
 
 interface UseTaskPollingOptions {
   taskId: string | null;
   pollingInterval?: number;
   maxPollingTime?: number;
   onProgress?: (status: StatusResponse) => void;
-  onComplete?: (result: ResultResponse) => void;
-  onError?: (error: Error) => void;
+  onComplete?: (status: StatusResponse) => void;
+  onError?: (error: Error, latestStatus?: StatusResponse) => void;
 }
 
 interface UseTaskPollingReturn {
@@ -41,6 +41,7 @@ export function useTaskPolling({
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = useRef<number>(0);
   const pollingInitiatedRef = useRef<string | null>(null);
+  const latestStatusRef = useRef<StatusResponse | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -62,6 +63,7 @@ export function useTaskPolling({
 
       // 获取任务状态
       const statusData = await getTaskStatus(taskId);
+      latestStatusRef.current = statusData;
       
       setProgress(statusData.progress);
       setCurrentStep(statusData.current_step);
@@ -72,9 +74,7 @@ export function useTaskPolling({
 
       // 检查任务是否完成
       if (statusData.status === 'success') {
-        // 获取完整结果
-        const resultData = await getTaskResult(taskId);
-        onComplete?.(resultData);
+        onComplete?.(statusData);
         stopPolling();
         return;
       }
@@ -91,7 +91,7 @@ export function useTaskPolling({
     } catch (err) {
       const error = err instanceof Error ? err : new Error('未知错误');
       setError(error);
-      onError?.(error);
+      onError?.(error, latestStatusRef.current || undefined);
       stopPolling();
     }
   }, [taskId, pollingInterval, maxPollingTime, onProgress, onComplete, onError, stopPolling]);

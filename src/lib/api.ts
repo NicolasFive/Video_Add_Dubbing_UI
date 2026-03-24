@@ -1,9 +1,12 @@
 import axios from 'axios';
 import type { 
-  DubbingRequest, 
   DubbingResponse, 
   StatusResponse, 
-  ResultResponse 
+  ResultResponse,
+  OptimizeDataResponse,
+  OptimizeUpdateResponse,
+  PipelineConfigResponse,
+  PipelineLineTypesResponse
 } from './types';
 
 // 创建 axios 实例
@@ -42,8 +45,11 @@ apiClient.interceptors.response.use(
 export async function submitDubbingTask(
   videoFile?: File,
   audioFile?: File,
-  voiceType?: string,
-  taskId?: string
+  voiceTypes?: string[],
+  lineType?: string,
+  taskId?: string,
+  startStep?: string,
+  endStep?: string
 ): Promise<DubbingResponse> {
   const formData = new FormData();
   
@@ -53,11 +59,22 @@ export async function submitDubbingTask(
   if (audioFile) {
     formData.append('audio', audioFile);
   }
-  if (voiceType) {
-    formData.append('voice_type', voiceType);
+  if (voiceTypes && voiceTypes.length > 0) {
+    voiceTypes.forEach((voiceType) => {
+      formData.append('voice_types', voiceType);
+    });
+  }
+  if (lineType) {
+    formData.append('line_type', lineType);
   }
   if (taskId) {
     formData.append('task_id', taskId);
+  }
+  if (startStep) {
+    formData.append('start_step', startStep);
+  }
+  if (endStep) {
+    formData.append('end_step', endStep);
   }
 
   const response = await apiClient.post<DubbingResponse>(
@@ -78,7 +95,7 @@ export async function submitDubbingTask(
  */
 export async function getTaskStatus(taskId: string): Promise<StatusResponse> {
   const response = await apiClient.get<StatusResponse>(
-    `/v1/status/task_id/${taskId}`
+    `/v1/status/${taskId}`
   );
   return response.data;
 }
@@ -88,7 +105,7 @@ export async function getTaskStatus(taskId: string): Promise<StatusResponse> {
  */
 export async function getTaskResult(taskId: string): Promise<ResultResponse> {
   const response = await apiClient.get<ResultResponse>(
-    `/v1/result/task_id/${taskId}`
+    `/v1/result/${taskId}`
   );
   return response.data;
 }
@@ -101,11 +118,74 @@ export async function downloadFile(
   filePath: string
 ): Promise<Blob> {
   const response = await apiClient.get(
-    `/v1/result/task_id/${taskId}/download`,
+    `/v1/result/${taskId}/download`,
     {
       params: { file: filePath },
       responseType: 'blob',
     }
+  );
+  return response.data;
+}
+
+/**
+ * 查询任务阶段数据
+ */
+export async function getOptimizeData(
+  taskId: string,
+  stage: string
+): Promise<OptimizeDataResponse> {
+  const response = await apiClient.get<OptimizeDataResponse>(
+    `/v1/optimize/${taskId}`,
+    {
+      params: { stage },
+    }
+  );
+  return response.data;
+}
+
+/**
+ * 更新任务阶段数据
+ */
+export async function updateOptimizeData(
+  taskId: string,
+  stage: string,
+  data: string
+): Promise<OptimizeUpdateResponse> {
+  const formData = new FormData();
+  formData.append('stage', stage);
+  formData.append('data', data);
+
+  const response = await apiClient.post<OptimizeUpdateResponse>(
+    `/v1/optimize/${taskId}`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+}
+
+/**
+ * 获取流程配置
+ */
+export async function getPipelineConfig(lineType?: string): Promise<PipelineConfigResponse> {
+  const response = await apiClient.get<PipelineConfigResponse>(
+    '/v1/pipline/config',
+    {
+      params: lineType ? { line_type: lineType } : undefined,
+    }
+  );
+  return response.data;
+}
+
+/**
+ * 获取流程类型字典
+ */
+export async function getPipelineLineTypes(): Promise<PipelineLineTypesResponse> {
+  const response = await apiClient.get<PipelineLineTypesResponse>(
+    '/v1/pipline/line-types'
   );
   return response.data;
 }

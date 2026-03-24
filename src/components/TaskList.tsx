@@ -6,9 +6,10 @@ import TaskItem from './TaskItem';
 interface TaskListProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
+  onTaskRetry: (task: Task) => void;
 }
 
-export default function TaskList({ tasks, onTaskClick }: TaskListProps) {
+export default function TaskList({ tasks, onTaskClick, onTaskRetry }: TaskListProps) {
   if (tasks.length === 0) {
     return (
       <section className="bg-white rounded-xl shadow-md p-8 text-center">
@@ -33,6 +34,7 @@ export default function TaskList({ tasks, onTaskClick }: TaskListProps) {
             key={task.task_id}
             task={task}
             onClick={() => onTaskClick(task)}
+            onRetry={() => onTaskRetry(task)}
           />
         ))}
       </div>

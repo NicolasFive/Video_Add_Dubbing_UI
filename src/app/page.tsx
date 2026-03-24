@@ -1,47 +1,73 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import UploadSection from '@/components/UploadSection';
 import TaskList from '@/components/TaskList';
 import ProgressModal from '@/components/ProgressModal';
-import ResultModal from '@/components/ResultModal';
 import { useTaskStore } from '@/stores/taskStore';
 import type { Task } from '@/lib/types';
 
+type RetryTaskContext = {
+  taskId: string;
+  lineType?: string;
+};
+
 export default function Home() {
   const { tasks, addTask, updateTask } = useTaskStore();
-  const [showProgress, setShowProgress] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [retryTask, setRetryTask] = useState<RetryTaskContext | null>(null);
+  const uploadSectionRef = useRef<HTMLDivElement>(null);
 
   // 处理新任务提交
   const handleTaskSubmit = (task: Task) => {
-    addTask(task);
+    const isRetryTask = Boolean(retryTask);
+    if (isRetryTask) {
+      updateTask(task);
+    } else {
+      addTask(task);
+    }
+
     setSelectedTask(task);
-    setShowProgress(true);
+    setShowTaskModal(true);
+  };
+
+  // 处理轮询中的进度更新
+  const handleTaskProgress = (task: Task) => {
+    updateTask(task);
+    setSelectedTask((prev) =>
+      prev && prev.task_id === task.task_id ? task : prev
+    );
   };
 
   // 处理任务完成
   const handleTaskComplete = (task: Task) => {
     updateTask(task);
-    setShowProgress(false);
-    setShowResult(true);
+    setSelectedTask(task);
+    setShowTaskModal(true);
   };
 
   // 处理任务列表点击
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
-    if (task.status === 'success') {
-      setShowResult(true);
-    } else if (task.status === 'processing' || task.status === 'pending' || task.status === 'failed') {
-      setShowProgress(true);
-    }
+    setShowTaskModal(true);
+  };
+
+  const handleTaskRetry = (task: Task) => {
+    setRetryTask({
+      taskId: task.task_id,
+      lineType: task.line_type,
+    });
+    uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleCancelRetry = () => {
+    setRetryTask(null);
   };
 
   // 关闭模态框
   const handleCloseModal = () => {
-    setShowProgress(false);
-    setShowResult(false);
+    setShowTaskModal(false);
   };
 
   return (
@@ -57,27 +83,27 @@ export default function Home() {
       </section>
 
       {/* 上传区域 */}
-      <UploadSection onTaskSubmit={handleTaskSubmit} />
+      <div ref={uploadSectionRef}>
+        <UploadSection
+          onTaskSubmit={handleTaskSubmit}
+          retryTask={retryTask}
+          onCancelRetry={handleCancelRetry}
+        />
+      </div>
 
       {/* 任务列表 */}
       <TaskList 
         tasks={tasks} 
         onTaskClick={handleTaskClick}
+        onTaskRetry={handleTaskRetry}
       />
 
       {/* 进度模态框 */}
-      {showProgress && selectedTask && (
+      {showTaskModal && selectedTask && (
         <ProgressModal
           task={selectedTask}
+          onProgress={handleTaskProgress}
           onComplete={handleTaskComplete}
-          onClose={handleCloseModal}
-        />
-      )}
-
-      {/* 结果模态框 */}
-      {showResult && selectedTask && (
-        <ResultModal
-          task={selectedTask}
           onClose={handleCloseModal}
         />
       )}
