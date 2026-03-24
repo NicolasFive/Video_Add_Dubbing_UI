@@ -1,0 +1,28 @@
+services:
+  app:
+    build: .
+    env_file:
+      - .env.prod
+    container_name: video-dubbing-web-app
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: video-dubbing-web-nginx
+    depends_on:
+      - app
+    env_file:
+      - .env.prod
+    environment:
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-host.docker.internal:8000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    restart: unless-stopped

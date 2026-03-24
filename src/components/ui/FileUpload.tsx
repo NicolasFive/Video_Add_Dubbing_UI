@@ -22,7 +22,8 @@ const FileUpload = forwardRef<HTMLInputElement, FileUploadProps>(
 		onFileSelect,
 	}, ref) => {
 		const [isDragging, setIsDragging] = useState(false);
-		const inputId = id ?? `media-upload-${useId()}`;
+		const generatedId = useId();
+		const inputId = id ?? `media-upload-${generatedId}`;
 
 		const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 			const file = event.target.files?.[0];

@@ -33,7 +33,12 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
   const [showStageData, setShowStageData] = useState(false);
   const [isQueryingStage, setIsQueryingStage] = useState(false);
   const [isUpdatingStage, setIsUpdatingStage] = useState(false);
+  const taskRef = useRef(task);
   const onProgressRef = useRef(onProgress);
+
+  useEffect(() => {
+    taskRef.current = task;
+  }, [task]);
 
   useEffect(() => {
     onProgressRef.current = onProgress;
@@ -95,9 +100,10 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
     const fetchResult = async () => {
       setIsLoadingFiles(true);
       try {
-        const result = await getTaskResult(task.task_id);
+        const currentTask = taskRef.current;
+        const result = await getTaskResult(currentTask.task_id);
         const updatedTask: Task = {
-          ...task,
+          ...currentTask,
           status: result.status,
           progress: result.progress,
           current_step: result.current_step,

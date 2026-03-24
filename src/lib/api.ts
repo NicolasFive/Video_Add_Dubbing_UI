@@ -11,7 +11,8 @@ import type {
 
 // 创建 axios 实例
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000',
+  // Use same-origin path so local dev keeps Next proxy and Docker uses Nginx proxy.
+  baseURL: '/api',
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
@@ -21,10 +22,6 @@ const apiClient = axios.create({
 // 请求拦截器 - 处理跨域
 apiClient.interceptors.request.use(
   (config) => {
-    // 开发环境下使用代理
-    if (process.env.NODE_ENV === 'development') {
-      config.baseURL = '/api';
-    }
     return config;
   },
   (error) => Promise.reject(error)
