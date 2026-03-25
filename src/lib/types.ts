@@ -73,6 +73,8 @@ export interface PipelineLineTypesResponse {
 export interface Task {
   task_id: string;
   line_type?: string;
+  voice_types?: string[];
+  voice_source?: string;
   status: 'pending' | 'processing' | 'success' | 'failed' | 'unknown';
   progress: number;
   current_step: string | null;

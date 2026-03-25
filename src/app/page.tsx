@@ -10,6 +10,8 @@ import type { Task } from '@/lib/types';
 type RetryTaskContext = {
   taskId: string;
   lineType?: string;
+  voiceTypes?: string[];
+  voiceSource?: string;
 };
 
 export default function Home() {
@@ -57,6 +59,8 @@ export default function Home() {
     setRetryTask({
       taskId: task.task_id,
       lineType: task.line_type,
+      voiceTypes: task.voice_types,
+      voiceSource: task.voice_source,
     });
     uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };

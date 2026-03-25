@@ -78,6 +78,7 @@ export async function submitDubbingTask(
     '/v1/dubbing',
     formData,
     {
+      timeout: 300000,
       headers: {
         'Content-Type': 'multipart/form-data',
       },

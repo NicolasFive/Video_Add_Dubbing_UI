@@ -12,6 +12,8 @@ import { showToast } from './ui/Toast';
 type RetryTaskContext = {
   taskId: string;
   lineType?: string;
+  voiceTypes?: string[];
+  voiceSource?: string;
 };
 
 interface UploadSectionProps {
@@ -78,6 +80,20 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
 
   useEffect(() => {
     setSelectedLineType(retryTask?.lineType ?? '');
+  }, [retryTask]);
+
+  useEffect(() => {
+    if (!retryTask) {
+      return;
+    }
+
+    if (retryTask.voiceSource) {
+      setVoiceSource(retryTask.voiceSource);
+    }
+
+    if (retryTask.voiceTypes && retryTask.voiceTypes.length > 0) {
+      setVoiceTypes(retryTask.voiceTypes);
+    }
   }, [retryTask]);
 
   useEffect(() => {
@@ -187,6 +203,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
       const task: Task = await submitUpload({
         videoFile: selectedVideoFile || undefined,
         audioFile: selectedAudioFile || undefined,
+        voiceSource,
         voiceTypes,
         lineType: selectedLineType || undefined,
         taskId: retryTask?.taskId,

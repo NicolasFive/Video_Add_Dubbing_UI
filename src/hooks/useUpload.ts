@@ -6,6 +6,7 @@ import type { Task } from '@/lib/types';
 interface SubmitUploadParams {
   videoFile?: File;
   audioFile?: File;
+  voiceSource: string;
   voiceTypes: string[];
   lineType?: string;
   taskId?: string;
@@ -21,7 +22,7 @@ interface UseUploadReturn {
 export function useUpload(): UseUploadReturn {
   const [isUploading, setIsUploading] = useState(false);
 
-  const submitUpload = async ({ videoFile, audioFile, voiceTypes, lineType, taskId, startStep, endStep }: SubmitUploadParams): Promise<Task> => {
+  const submitUpload = async ({ videoFile, audioFile, voiceSource, voiceTypes, lineType, taskId, startStep, endStep }: SubmitUploadParams): Promise<Task> => {
     setIsUploading(true);
 
     try {
@@ -43,6 +44,8 @@ export function useUpload(): UseUploadReturn {
       return {
         task_id: response.task_id,
         line_type: lineType,
+        voice_types: voiceTypes,
+        voice_source: voiceSource,
         status: response.status,
         progress: 0,
         current_step: '待处理',
