@@ -110,5 +110,7 @@ export const VOICE_TYPES = [
   { value: 'zh_female_jitangnv_uranus_bigtts', label: '女声 - 鸡汤女 2.0', source: 'doubao_v2' },
   { value: 'zh_male_sophie_uranus_bigtts', label: '女声 - 魅力苏菲 2.0', source: 'doubao_v2' },
   { value: 'zh_female_meilinvyou_uranus_bigtts', label: '女声 - 魅力女友 2.0', source: 'doubao_v2' },
-  { value: 'zh_female_cancan_uranus_bigtts', label: '女声 - 知性灿灿 2.0', source: 'doubao_v2' }
+  { value: 'zh_female_cancan_uranus_bigtts', label: '女声 - 知性灿灿 2.0', source: 'doubao_v2' },
+  { value: 'zh_male_taocheng_uranus_bigtts', label: '男声 - 小天 2.0', source: 'doubao_v2' },
+  { value: 'zh_male_m191_uranus_bigtts', label: '男声 - 云州 2.0', source: 'doubao_v2' }
 ];
