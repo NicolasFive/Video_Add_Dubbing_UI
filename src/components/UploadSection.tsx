@@ -14,6 +14,7 @@ type RetryTaskContext = {
   lineType?: string;
   voiceTypes?: string[];
   voiceSource?: string;
+  duckDb?: number;
 };
 
 interface UploadSectionProps {
@@ -39,6 +40,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStepOption[]>([]);
   const [startStep, setStartStep] = useState<string | null>(null);
   const [endStep, setEndStep] = useState<string | null>(null);
+  const [duckDb, setDuckDb] = useState<string>('');
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const { isUploading, submitUpload } = useUpload();
@@ -94,6 +96,8 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
     if (retryTask.voiceTypes && retryTask.voiceTypes.length > 0) {
       setVoiceTypes(retryTask.voiceTypes);
     }
+
+    setDuckDb(typeof retryTask.duckDb === 'number' ? String(retryTask.duckDb) : '');
   }, [retryTask]);
 
   useEffect(() => {
@@ -185,6 +189,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
     setSelectedLineType(retryTask?.lineType ?? '');
     setStartStep(null);
     setEndStep(null);
+    setDuckDb(typeof retryTask?.duckDb === 'number' ? String(retryTask.duckDb) : '');
     if (videoInputRef.current) {
       videoInputRef.current.value = '';
     }
@@ -199,6 +204,14 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
       return;
     }
 
+    const trimmedDuckDb = duckDb.trim();
+    if (trimmedDuckDb !== '' && !/^-?\d+$/.test(trimmedDuckDb)) {
+      showToast('duck_db 必须是整数', 'error');
+      return;
+    }
+
+    const parsedDuckDb = trimmedDuckDb === '' ? undefined : Number.parseInt(trimmedDuckDb, 10);
+
     try {
       const task: Task = await submitUpload({
         videoFile: selectedVideoFile || undefined,
@@ -209,6 +222,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
         taskId: retryTask?.taskId,
         startStep: startStep ?? undefined,
         endStep: endStep ?? undefined,
+        duckDb: parsedDuckDb,
       });
 
       showToast('任务提交成功', 'success');
@@ -377,6 +391,25 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
               × 清除范围选择（执行全流程）
             </button>
           )}
+        </div>
+
+        {/* 语音类型选择 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="duck-db-input">
+            背景音乐 ducking 音量参数（duck_db，可选）
+          </label>
+          <input
+            id="duck-db-input"
+            type="number"
+            inputMode="numeric"
+            step={1}
+            value={duckDb}
+            onChange={(e) => setDuckDb(e.target.value)}
+            placeholder="例如 -12"
+            className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg
+                       focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+                       bg-white text-gray-900"
+          />
         </div>
 
         {/* 语音类型选择 */}

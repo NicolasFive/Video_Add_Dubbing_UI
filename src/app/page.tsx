@@ -12,6 +12,7 @@ type RetryTaskContext = {
   lineType?: string;
   voiceTypes?: string[];
   voiceSource?: string;
+  duckDb?: number;
 };
 
 export default function Home() {
@@ -61,6 +62,7 @@ export default function Home() {
       lineType: task.line_type,
       voiceTypes: task.voice_types,
       voiceSource: task.voice_source,
+      duckDb: task.duck_db,
     });
     uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };

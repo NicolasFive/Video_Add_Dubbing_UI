@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTaskPolling } from '@/hooks/useTaskPolling';
-import { downloadFile, getOptimizeData, getTaskResult, updateOptimizeData } from '@/lib/api';
-import type { Task, ResultFile } from '@/lib/types';
+import { downloadFile, getOptimizeData, getSelfCheckData, getTaskResult, submitCheckConfirm, updateOptimizeData } from '@/lib/api';
+import type { Task, ResultFile, SelfCheckItem } from '@/lib/types';
 import Modal from './ui/Modal';
 import ProgressBar from './ui/ProgressBar';
 import Button from './ui/Button';
@@ -21,7 +21,8 @@ const STAGE_OPTIONS = [
   { value: 'Translating', label: '翻译' },
   { value: 'Building Subtitles', label: '生成字幕数据' },
   { value: 'Optimizing Subtitles', label: '优化字幕数据' },
-  { value: 'Generating Subtitles', label: '生成字幕文件' },
+  { value: 'Generating Subtitles', label: '生成字幕' },
+  { value: 'Mark Delete Segment', label: '标记删除片段' },
 ] as const;
 
 export default function ProgressModal({ task, onProgress, onComplete, onClose }: ProgressModalProps) {
@@ -31,8 +32,12 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
   const [selectedStage, setSelectedStage] = useState<string>('');
   const [stageData, setStageData] = useState<string>('');
   const [showStageData, setShowStageData] = useState(false);
+  const [selfCheckItems, setSelfCheckItems] = useState<SelfCheckItem[]>([]);
+  const [showSelfCheckData, setShowSelfCheckData] = useState(false);
   const [isQueryingStage, setIsQueryingStage] = useState(false);
   const [isUpdatingStage, setIsUpdatingStage] = useState(false);
+  const [isCheckingStage, setIsCheckingStage] = useState(false);
+  const [isSubmittingCheck, setIsSubmittingCheck] = useState(false);
   const taskRef = useRef(task);
   const onProgressRef = useRef(onProgress);
 
@@ -156,6 +161,7 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
       const result = await getOptimizeData(task.task_id, selectedStage);
       setStageData(result.data || '');
       setShowStageData(true);
+      setShowSelfCheckData(false);
       showToast('查询成功', 'success');
     } catch (queryError) {
       console.error('查询流程节点数据失败:', queryError);
@@ -187,6 +193,60 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
       showToast('更新失败，请重试', 'error');
     } finally {
       setIsUpdatingStage(false);
+    }
+  };
+
+  const handleSelfCheck = async () => {
+    if (!selectedStage) {
+      showToast('请先选择流程节点', 'error');
+      return;
+    }
+
+    setIsCheckingStage(true);
+    try {
+      const result = await getSelfCheckData(task.task_id, selectedStage);
+      setSelfCheckItems(result.data || []);
+      setShowSelfCheckData(true);
+      setShowStageData(false);
+      showToast('智能自检完成', 'success');
+    } catch (checkError) {
+      console.error('智能自检失败:', checkError);
+      showToast('智能自检失败，请重试', 'error');
+    } finally {
+      setIsCheckingStage(false);
+    }
+  };
+
+  const handleConfirmContentChange = (index: number, value: string) => {
+    setSelfCheckItems((currentItems) =>
+      currentItems.map((item) =>
+        item.index === index
+          ? {
+              ...item,
+              confirm_content: value,
+            }
+          : item
+      )
+    );
+  };
+
+  const handleSubmitSelfCheck = async () => {
+    if (!selectedStage) {
+      showToast('请先选择流程节点', 'error');
+      return;
+    }
+
+    setIsSubmittingCheck(true);
+    try {
+      await submitCheckConfirm(task.task_id, selectedStage, selfCheckItems);
+      showToast('提交成功', 'success');
+      setShowSelfCheckData(false);
+      handleSelfCheck();
+    } catch (submitError) {
+      console.error('提交自检确认失败:', submitError);
+      showToast('提交失败，请重试', 'error');
+    } finally {
+      setIsSubmittingCheck(false);
     }
   };
 
@@ -238,6 +298,8 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
                 setSelectedStage(e.target.value);
                 setShowStageData(false);
                 setStageData('');
+                setShowSelfCheckData(false);
+                setSelfCheckItems([]);
               }}
             >
               <option value="">请选择流程节点</option>
@@ -251,9 +313,18 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
             <Button
               onClick={handleQueryStageData}
               loading={isQueryingStage}
-              disabled={!selectedStage || isUpdatingStage}
+              disabled={!selectedStage || isUpdatingStage || isCheckingStage || isSubmittingCheck}
             >
-              查询
+              全量调整
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={handleSelfCheck}
+              loading={isCheckingStage}
+              disabled={!selectedStage || isQueryingStage || isUpdatingStage || isSubmittingCheck}
+            >
+              智能自检
             </Button>
           </div>
 
@@ -275,6 +346,51 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
                 onChange={(e) => setStageData(e.target.value)}
                 placeholder="请输入 JSON 字符串"
               />
+            </div>
+          )}
+
+          {showSelfCheckData && (
+            <div className="space-y-3 border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm text-gray-600">自检结果</label>
+                <Button
+                  onClick={handleSubmitSelfCheck}
+                  loading={isSubmittingCheck}
+                  disabled={isCheckingStage || selfCheckItems.length === 0}
+                >
+                  提交
+                </Button>
+              </div>
+
+              {selfCheckItems.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+                  当前阶段未返回自检项
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {selfCheckItems.map((item) => (
+                    <div key={item.index} className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">#{item.index} {item.check_point}（{item.issue || '无'}）</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 text-sm text-gray-700">
+                        <div>
+                          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">告警内容：{item.warning_content || '无'}</p>
+                          <textarea
+                            className="w-full min-h-24 rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            value={item.confirm_content || ''}
+                            onChange={(e) => handleConfirmContentChange(item.index, e.target.value)}
+                            placeholder="请输入确认或修正后的内容"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

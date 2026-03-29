@@ -8,6 +8,7 @@ export interface DubbingRequest {
   task_id?: string;
   start_step?: string;
   end_step?: string;
+  duck_db?: number;
 }
 
 export interface DubbingResponse {
@@ -56,6 +57,25 @@ export interface OptimizeUpdateResponse {
   message: string;
 }
 
+export interface SelfCheckItem {
+  index: number;
+  check_point: string;
+  issue: string | null;
+  warning_content: string | null;
+  confirm_content: string | null;
+}
+
+export interface SelfCheckResponse {
+  task_id: string;
+  stage: string;
+  data: SelfCheckItem[];
+}
+
+export interface CheckConfirmResponse {
+  task_id: string;
+  stage: string;
+}
+
 export interface PipelineStage {
   key: string;
   name: string;
@@ -75,6 +95,7 @@ export interface Task {
   line_type?: string;
   voice_types?: string[];
   voice_source?: string;
+  duck_db?: number;
   status: 'pending' | 'processing' | 'success' | 'failed' | 'unknown';
   progress: number;
   current_step: string | null;

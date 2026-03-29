@@ -5,6 +5,8 @@ import type {
   ResultResponse,
   OptimizeDataResponse,
   OptimizeUpdateResponse,
+  SelfCheckResponse,
+  CheckConfirmResponse,
   PipelineConfigResponse,
   PipelineLineTypesResponse
 } from './types';
@@ -46,7 +48,8 @@ export async function submitDubbingTask(
   lineType?: string,
   taskId?: string,
   startStep?: string,
-  endStep?: string
+  endStep?: string,
+  duckDb?: number
 ): Promise<DubbingResponse> {
   const formData = new FormData();
   
@@ -72,6 +75,9 @@ export async function submitDubbingTask(
   }
   if (endStep) {
     formData.append('end_step', endStep);
+  }
+  if (typeof duckDb === 'number') {
+    formData.append('duck_db', String(duckDb));
   }
 
   const response = await apiClient.post<DubbingResponse>(
@@ -155,6 +161,46 @@ export async function updateOptimizeData(
 
   const response = await apiClient.post<OptimizeUpdateResponse>(
     `/v1/optimize/${taskId}`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+}
+
+/**
+ * 执行流程节点智能自检
+ */
+export async function getSelfCheckData(
+  taskId: string,
+  stage: string
+): Promise<SelfCheckResponse> {
+  const response = await apiClient.get<SelfCheckResponse>(
+    `/v1/optimize/self_check/${taskId}`,
+    {
+      params: { stage },
+    }
+  );
+  return response.data;
+}
+
+/**
+ * 提交流程节点自检确认结果
+ */
+export async function submitCheckConfirm(
+  taskId: string,
+  stage: string,
+  data: SelfCheckResponse['data']
+): Promise<CheckConfirmResponse> {
+  const formData = new FormData();
+  formData.append('stage', stage);
+  formData.append('data', JSON.stringify(data));
+
+  const response = await apiClient.post<CheckConfirmResponse>(
+    `/v1/optimize/check_confirm/${taskId}`,
     formData,
     {
       headers: {
