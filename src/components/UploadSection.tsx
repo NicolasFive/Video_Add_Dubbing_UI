@@ -15,6 +15,7 @@ type RetryTaskContext = {
   voiceTypes?: string[];
   voiceSource?: string;
   duckDb?: number;
+  noCache?: boolean;
 };
 
 interface UploadSectionProps {
@@ -41,6 +42,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
   const [startStep, setStartStep] = useState<string | null>(null);
   const [endStep, setEndStep] = useState<string | null>(null);
   const [duckDb, setDuckDb] = useState<string>('');
+  const [noCache, setNoCache] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const { isUploading, submitUpload } = useUpload();
@@ -98,6 +100,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
     }
 
     setDuckDb(typeof retryTask.duckDb === 'number' ? String(retryTask.duckDb) : '');
+    setNoCache(Boolean(retryTask.noCache));
   }, [retryTask]);
 
   useEffect(() => {
@@ -190,6 +193,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
     setStartStep(null);
     setEndStep(null);
     setDuckDb(typeof retryTask?.duckDb === 'number' ? String(retryTask.duckDb) : '');
+    setNoCache(Boolean(retryTask?.noCache));
     if (videoInputRef.current) {
       videoInputRef.current.value = '';
     }
@@ -223,6 +227,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
         startStep: startStep ?? undefined,
         endStep: endStep ?? undefined,
         duckDb: parsedDuckDb,
+        noCache,
       });
 
       showToast('任务提交成功', 'success');
@@ -330,7 +335,17 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
           </div>
 
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-700">处理流程</label>
+            <label className="block text-sm font-medium text-gray-700">
+              处理流程
+              （跳过缓存
+              <input
+                type="checkbox"
+                checked={noCache}
+                onChange={(e) => setNoCache(e.target.checked)}
+              />
+              ）
+
+            </label>
             <span className="text-xs text-gray-400">
               {startStep && endStep
                 ? startStep === endStep
@@ -393,31 +408,25 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
           )}
         </div>
 
-        {/* 语音类型选择 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="duck-db-input">
-            背景音乐 ducking 音量参数（duck_db，可选）
-          </label>
-          <input
-            id="duck-db-input"
-            type="number"
-            inputMode="numeric"
-            step={1}
-            value={duckDb}
-            onChange={(e) => setDuckDb(e.target.value)}
-            placeholder="例如 -12"
-            className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg
-                       focus:ring-2 focus:ring-primary-500 focus:border-primary-500
-                       bg-white text-gray-900"
-          />
-        </div>
-
-        {/* 语音类型选择 */}
+        {/* 参数配置 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            配音语音
+            背景音乐分贝降低（可选）
+            <input
+              id="duck-db-input"
+              type="number"
+              inputMode="numeric"
+              step={1}
+              value={duckDb}
+              onChange={(e) => setDuckDb(e.target.value)}
+              placeholder="例如 -12"
+              className="w-full md:w-30 px-4 py-2 border border-gray-300 rounded-lg
+                       focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+                       bg-white text-gray-900"
+            />
           </label>
-          <div className="flex flex-col gap-3">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            配音语音 &nbsp;
             <select
               value={voiceSource}
               onChange={(e) => handleVoiceSourceChange(e.target.value)}
@@ -431,46 +440,46 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
                 </option>
               ))}
             </select>
-            <div className="space-y-3">
-              {voiceTypes.map((voiceType, index) => (
-                <div key={`${voiceType}-${index}`} className="flex items-center gap-2">
-                  Speaker {index + 1}:
-                  <select
-                    value={voiceType}
-                    onChange={(e) => handleVoiceTypeChange(index, e.target.value)}
-                    className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg
+          </label>
+          <div className="space-y-3">
+            {voiceTypes.map((voiceType, index) => (
+              <div key={`${voiceType}-${index}`} className="flex items-center gap-2 text-sm">
+                Speaker {index + 1}
+                <select
+                  value={voiceType}
+                  onChange={(e) => handleVoiceTypeChange(index, e.target.value)}
+                  className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg
                                focus:ring-2 focus:ring-primary-500 focus:border-primary-500
                                bg-white text-gray-900"
-                  >
-                    {filteredVoiceTypes.map((voice) => (
-                      <option key={voice.value} value={voice.value}>
-                        {voice.label}
-                      </option>
-                    ))}
-                  </select>
+                >
+                  {filteredVoiceTypes.map((voice) => (
+                    <option key={voice.value} value={voice.value}>
+                      {voice.label}
+                    </option>
+                  ))}
+                </select>
 
-                  {index === 0 ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={handleAddVoiceType}
-                      className="px-4 py-2"
-                    >
-                      +
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="danger"
-                      onClick={() => handleRemoveVoiceType(index)}
-                      className="px-4 py-2"
-                    >
-                      删除
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
+                {index === 0 ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleAddVoiceType}
+                    className="px-4 py-2"
+                  >
+                    +
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => handleRemoveVoiceType(index)}
+                    className="px-4 py-2"
+                  >
+                    删除
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 

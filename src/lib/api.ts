@@ -49,7 +49,8 @@ export async function submitDubbingTask(
   taskId?: string,
   startStep?: string,
   endStep?: string,
-  duckDb?: number
+  duckDb?: number,
+  noCache?: boolean
 ): Promise<DubbingResponse> {
   const formData = new FormData();
   
@@ -79,6 +80,7 @@ export async function submitDubbingTask(
   if (typeof duckDb === 'number') {
     formData.append('duck_db', String(duckDb));
   }
+  formData.append('no_cache', String(noCache));
 
   const response = await apiClient.post<DubbingResponse>(
     '/v1/dubbing',

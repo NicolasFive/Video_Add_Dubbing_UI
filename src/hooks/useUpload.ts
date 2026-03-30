@@ -13,6 +13,7 @@ interface SubmitUploadParams {
   startStep?: string;
   endStep?: string;
   duckDb?: number;
+  noCache: boolean;
 }
 
 interface UseUploadReturn {
@@ -23,7 +24,7 @@ interface UseUploadReturn {
 export function useUpload(): UseUploadReturn {
   const [isUploading, setIsUploading] = useState(false);
 
-  const submitUpload = async ({ videoFile, audioFile, voiceSource, voiceTypes, lineType, taskId, startStep, endStep, duckDb }: SubmitUploadParams): Promise<Task> => {
+  const submitUpload = async ({ videoFile, audioFile, voiceSource, voiceTypes, lineType, taskId, startStep, endStep, duckDb, noCache }: SubmitUploadParams): Promise<Task> => {
     setIsUploading(true);
 
     try {
@@ -36,7 +37,8 @@ export function useUpload(): UseUploadReturn {
         resolvedTaskId,
         startStep,
         endStep,
-        duckDb
+        duckDb,
+        noCache
       );
 
       const sourceFileName = videoFile && audioFile
@@ -49,6 +51,7 @@ export function useUpload(): UseUploadReturn {
         voice_types: voiceTypes,
         voice_source: voiceSource,
         duck_db: duckDb,
+        no_cache: noCache,
         status: response.status,
         progress: 0,
         current_step: '待处理',

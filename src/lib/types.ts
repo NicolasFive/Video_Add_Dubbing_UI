@@ -9,6 +9,7 @@ export interface DubbingRequest {
   start_step?: string;
   end_step?: string;
   duck_db?: number;
+  no_cache?: boolean;
 }
 
 export interface DubbingResponse {
@@ -96,6 +97,7 @@ export interface Task {
   voice_types?: string[];
   voice_source?: string;
   duck_db?: number;
+  no_cache?: boolean;
   status: 'pending' | 'processing' | 'success' | 'failed' | 'unknown';
   progress: number;
   current_step: string | null;

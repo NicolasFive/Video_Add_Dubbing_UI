@@ -13,6 +13,7 @@ type RetryTaskContext = {
   voiceTypes?: string[];
   voiceSource?: string;
   duckDb?: number;
+  noCache?: boolean;
 };
 
 export default function Home() {
@@ -63,6 +64,7 @@ export default function Home() {
       voiceTypes: task.voice_types,
       voiceSource: task.voice_source,
       duckDb: task.duck_db,
+      noCache: task.no_cache,
     });
     uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
