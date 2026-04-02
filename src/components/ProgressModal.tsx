@@ -21,6 +21,7 @@ const STAGE_OPTIONS = [
   { value: 'Translating', label: '翻译' },
   { value: 'Building Subtitles', label: '生成字幕数据' },
   { value: 'Optimizing Subtitles', label: '优化字幕数据' },
+  { value: 'Emotion Analysist', label: '情感分析' },
   { value: 'Generating Subtitles', label: '生成字幕' },
   { value: 'Mark Delete Segment', label: '标记删除片段' },
 ] as const;
