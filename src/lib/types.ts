@@ -46,6 +46,19 @@ export interface ResultResponse {
   error_detail: string | null;
 }
 
+export interface TaskListItemResponse {
+  task_id: string;
+  input_video_path: string | null;
+  input_audio_path: string | null;
+  work_dir: string | null;
+  voice_source: string | null;
+  voice_types: string[] | null;
+  line_type: string | null;
+  duck_db: number | null;
+  no_cache: boolean;
+  update_time: string | null;
+}
+
 export interface OptimizeDataResponse {
   task_id: string;
   stage: string;

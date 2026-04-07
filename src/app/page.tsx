@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import UploadSection from '@/components/UploadSection';
 import TaskList from '@/components/TaskList';
 import ProgressModal from '@/components/ProgressModal';
-import { useTaskStore } from '@/stores/taskStore';
+import { getTaskList } from '@/lib/api';
 import type { Task } from '@/lib/types';
 
 type RetryTaskContext = {
@@ -17,28 +17,74 @@ type RetryTaskContext = {
 };
 
 export default function Home() {
-  const { tasks, addTask, updateTask } = useTaskStore();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isTaskListLoading, setIsTaskListLoading] = useState(true);
+  const [taskListError, setTaskListError] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [retryTask, setRetryTask] = useState<RetryTaskContext | null>(null);
   const uploadSectionRef = useRef<HTMLDivElement>(null);
 
+  const upsertTask = useCallback((task: Task) => {
+    setTasks((currentTasks) => {
+      const existingIndex = currentTasks.findIndex((currentTask) => currentTask.task_id === task.task_id);
+
+      if (existingIndex === -1) {
+        return [task, ...currentTasks];
+      }
+
+      return currentTasks.map((currentTask) =>
+        currentTask.task_id === task.task_id ? { ...currentTask, ...task } : currentTask
+      );
+    });
+  }, []);
+
+  const refreshTasks = useCallback(async (fallbackTask?: Task) => {
+    setIsTaskListLoading(true);
+
+    try {
+      const fetchedTasks = await getTaskList();
+      const nextTasks = fallbackTask && !fetchedTasks.some((task) => task.task_id === fallbackTask.task_id)
+        ? [fallbackTask, ...fetchedTasks]
+        : fetchedTasks;
+
+      setTasks(nextTasks);
+      setTaskListError(null);
+      setSelectedTask((currentTask) => {
+        if (!currentTask) {
+          return currentTask;
+        }
+
+        return nextTasks.find((task) => task.task_id === currentTask.task_id)
+          || (fallbackTask?.task_id === currentTask.task_id ? fallbackTask : currentTask);
+      });
+    } catch (error) {
+      console.error('获取任务列表失败:', error);
+      setTaskListError('任务列表刷新失败，请稍后重试');
+
+      if (fallbackTask) {
+        upsertTask(fallbackTask);
+      }
+    } finally {
+      setIsTaskListLoading(false);
+    }
+  }, [upsertTask]);
+
+  useEffect(() => {
+    void refreshTasks();
+  }, [refreshTasks]);
+
   // 处理新任务提交
   const handleTaskSubmit = (task: Task) => {
-    const isRetryTask = Boolean(retryTask);
-    if (isRetryTask) {
-      updateTask(task);
-    } else {
-      addTask(task);
-    }
-
+    upsertTask(task);
     setSelectedTask(task);
     setShowTaskModal(true);
+    void refreshTasks(task);
   };
 
   // 处理轮询中的进度更新
   const handleTaskProgress = (task: Task) => {
-    updateTask(task);
+    upsertTask(task);
     setSelectedTask((prev) =>
       prev && prev.task_id === task.task_id ? task : prev
     );
@@ -46,9 +92,10 @@ export default function Home() {
 
   // 处理任务完成
   const handleTaskComplete = (task: Task) => {
-    updateTask(task);
+    upsertTask(task);
     setSelectedTask(task);
     setShowTaskModal(true);
+    void refreshTasks(task);
   };
 
   // 处理任务列表点击
@@ -76,6 +123,7 @@ export default function Home() {
   // 关闭模态框
   const handleCloseModal = () => {
     setShowTaskModal(false);
+    void refreshTasks(selectedTask || undefined);
   };
 
   return (
@@ -101,7 +149,12 @@ export default function Home() {
 
       {/* 任务列表 */}
       <TaskList 
-        tasks={tasks} 
+        tasks={tasks}
+        isLoading={isTaskListLoading}
+        errorMessage={taskListError}
+        onRefresh={() => {
+          void refreshTasks(selectedTask || undefined);
+        }}
         onTaskClick={handleTaskClick}
         onTaskRetry={handleTaskRetry}
       />

@@ -20,10 +20,14 @@ const statusConfig = {
 
 export default function TaskItem({ task, onClick, onRetry }: TaskItemProps) {
   const status = statusConfig[task.status] || statusConfig.unknown;
-  const timeAgo = formatDistanceToNow(new Date(task.created_at), {
-    addSuffix: true,
-    locale: zhCN,
-  });
+  const taskTime = task.updated_at || task.created_at;
+  const parsedTaskTime = new Date(taskTime);
+  const timeAgo = Number.isNaN(parsedTaskTime.getTime())
+    ? '时间未知'
+    : formatDistanceToNow(parsedTaskTime, {
+        addSuffix: true,
+        locale: zhCN,
+      });
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50">
@@ -47,7 +51,7 @@ export default function TaskItem({ task, onClick, onRetry }: TaskItemProps) {
           {/* 进度条 */}
           <div className="mt-2">
             <div className="flex items-center justify-between text-sm text-gray-500 mb-1">
-              <span>{task.current_step}</span>
+              <span>{task.current_step || '待处理'}</span>
               <span>{task.progress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">

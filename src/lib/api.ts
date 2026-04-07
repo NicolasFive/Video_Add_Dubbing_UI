@@ -3,6 +3,8 @@ import type {
   DubbingResponse, 
   StatusResponse, 
   ResultResponse,
+  Task,
+  TaskListItemResponse,
   OptimizeDataResponse,
   OptimizeUpdateResponse,
   SelfCheckResponse,
@@ -10,6 +12,7 @@ import type {
   PipelineConfigResponse,
   PipelineLineTypesResponse
 } from './types';
+import { VOICE_TYPES } from './types';
 
 // 创建 axios 实例
 const apiClient = axios.create({
@@ -104,6 +107,97 @@ export async function getTaskStatus(taskId: string): Promise<StatusResponse> {
     `/v1/status/${taskId}`
   );
   return response.data;
+}
+
+function normalizeTaskTimestamp(value?: string | null): string {
+  if (!value) {
+    return new Date().toISOString();
+  }
+
+  return value.includes('T') ? value : value.replace(' ', 'T');
+}
+
+function extractSourceFileName(filePath?: string | null): string | undefined {
+  if (!filePath) {
+    return undefined;
+  }
+
+  const segments = filePath.split(/[\\/]/);
+  return segments[segments.length - 1] || undefined;
+}
+
+function inferVoiceSource(
+  voiceSource?: string | null,
+  voiceTypes?: string[] | null
+): string | undefined {
+  if (voiceSource) {
+    return voiceSource;
+  }
+
+  const firstVoiceType = voiceTypes?.[0];
+  if (!firstVoiceType) {
+    return undefined;
+  }
+
+  return VOICE_TYPES.find((voice) => voice.value === firstVoiceType)?.source;
+}
+
+function mapTaskListItemToTask(item: TaskListItemResponse): Task {
+  const normalizedVoiceTypes = Array.isArray(item.voice_types)
+    ? item.voice_types.filter((voiceType): voiceType is string => typeof voiceType === 'string')
+    : undefined;
+  const normalizedTime = normalizeTaskTimestamp(item.update_time);
+
+  return {
+    task_id: item.task_id,
+    line_type: item.line_type || undefined,
+    voice_types: normalizedVoiceTypes,
+    voice_source: inferVoiceSource(item.voice_source, normalizedVoiceTypes),
+    duck_db: typeof item.duck_db === 'number' ? item.duck_db : undefined,
+    no_cache: Boolean(item.no_cache),
+    status: 'unknown',
+    progress: 0,
+    current_step: '待处理',
+    created_at: normalizedTime,
+    updated_at: normalizedTime,
+    source_file_name: extractSourceFileName(item.input_video_path) || extractSourceFileName(item.input_audio_path),
+  };
+}
+
+/**
+ * 获取任务列表
+ */
+export async function getTaskList(): Promise<Task[]> {
+  const response = await apiClient.get<TaskListItemResponse[]>(
+    '/v1/result/list'
+  );
+
+  const baseTasks = response.data.map(mapTaskListItemToTask);
+  if (baseTasks.length === 0) {
+    return baseTasks;
+  }
+
+  const statusResults = await Promise.allSettled(
+    baseTasks.map((task) => getTaskStatus(task.task_id))
+  );
+
+  return baseTasks.map((task, index) => {
+    const statusResult = statusResults[index];
+    if (statusResult.status !== 'fulfilled') {
+      return task;
+    }
+
+    const statusData = statusResult.value;
+    return {
+      ...task,
+      status: statusData.status,
+      progress: statusData.progress,
+      current_step: statusData.current_step || task.current_step,
+      error_detail: statusData.error_detail,
+      video_url: statusData.video_url,
+      subtitle_url: statusData.subtitle_url,
+    };
+  });
 }
 
 /**

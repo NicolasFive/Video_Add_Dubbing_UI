@@ -390,7 +390,7 @@ export default function UploadSection({ onTaskSubmit, retryTask, onCancelRetry }
                         {isStart && isEnd ? '开始&结束' : isStart ? '开始' : isEnd ? '结束' : ''}
                       </span>
                       <span className="leading-tight text-center" style={{ fontSize: '11px' }}>{step.label}</span>
-                      <span className="text-[9px] leading-none mt-0.5 opacity-50">{idx + 1}</span>
+                      <span className="text-[9px] leading-none mt-0.5 opacity-50">{step.value}</span>
                     </button>
                   </div>
                 );
