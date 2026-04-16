@@ -54,15 +54,19 @@ export function showToast(message: string, type: ToastType = 'info', duration?: 
   if (!toastContainer) {
     const existingContainer = document.getElementById('toast-container');
     if (existingContainer instanceof HTMLDivElement) {
-      // 复用 layout 中已有的容器，不移动或修改 React 管理的元素
+      // 复用 layout 中已有的容器
       toastContainer = existingContainer;
     } else {
       toastContainer = document.createElement('div');
       toastContainer.id = 'toast-container';
-      toastContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
+      toastContainer.className = 'fixed top-4 right-4 z-[1000] space-y-2';
       document.body.appendChild(toastContainer);
     }
   }
+
+  // 保障层级始终高于 Modal（Modal 当前为 z-50）。
+  toastContainer.classList.add('z-[1000]');
+  toastContainer.style.zIndex = '1000';
 
   const toast = document.createElement('div');
   toastContainer.appendChild(toast);

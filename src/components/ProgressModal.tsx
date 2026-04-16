@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTaskPolling } from '@/hooks/useTaskPolling';
-import { downloadFile, getOptimizeData, getSelfCheckData, getTaskResult, submitCheckConfirm, updateOptimizeData } from '@/lib/api';
+import { downloadFile, getOptimizeData, getSelfCheckData, getTaskResult, reduceOptimizeText, submitCheckConfirm, updateOptimizeData } from '@/lib/api';
 import type { Task, ResultFile, SelfCheckItem } from '@/lib/types';
 import Modal from './ui/Modal';
 import ProgressBar from './ui/ProgressBar';
@@ -15,6 +15,14 @@ interface ProgressModalProps {
   onProgress: (task: Task) => void;
   onComplete: (task: Task) => void;
   onClose: () => void;
+}
+
+interface SelfCheckActionButton {
+  key: string;
+  label: string;
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  onClick: (stage: string, item: SelfCheckItem) => void | Promise<void>;
+  disabled?: (stage: string, item: SelfCheckItem) => boolean;
 }
 
 const STAGE_OPTIONS = [
@@ -35,6 +43,7 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
   const [showStageData, setShowStageData] = useState(false);
   const [selfCheckItems, setSelfCheckItems] = useState<SelfCheckItem[]>([]);
   const [showSelfCheckData, setShowSelfCheckData] = useState(false);
+  const [selfCheckActionLoadingMap, setSelfCheckActionLoadingMap] = useState<Record<string, boolean>>({});
   const [isQueryingStage, setIsQueryingStage] = useState(false);
   const [isUpdatingStage, setIsUpdatingStage] = useState(false);
   const [isCheckingStage, setIsCheckingStage] = useState(false);
@@ -251,6 +260,63 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
     }
   };
 
+  const buildSelfCheckActionKey = (itemIndex: number, buttonKey: string) => `${itemIndex}-${buttonKey}`;
+
+  const createSelfCheckActionButtons = (stage: string, item: SelfCheckItem): SelfCheckActionButton[] => {
+    const buttons: SelfCheckActionButton[] = [
+      {
+        key: 'reset-confirm',
+        label: '重置',
+        variant: 'secondary',
+        onClick: (_stage, currentItem) => {
+          handleConfirmContentChange(currentItem.index, currentItem.warning_content || '');
+        },
+        disabled: (_stage, currentItem) => !currentItem.warning_content,
+      },
+      {
+        key: 'copy-confirm',
+        label: '复制',
+        variant: 'ghost',
+        onClick: async (_stage, currentItem) => {
+          try {
+            await navigator.clipboard.writeText(currentItem.confirm_content || '');
+            showToast('复制成功', 'success');
+          } catch (copyError) {
+            console.error('复制失败:', copyError);
+            showToast('复制失败，请检查浏览器权限', 'error');
+          }
+        },
+        disabled: (_stage, currentItem) => !(currentItem.confirm_content || '').trim(),
+      },
+    ];
+
+    if (stage === 'Optimizing Subtitles' && item.check_point === 'tts_duration_rating') {
+      buttons.push({
+        key: 'reduce-warning',
+        label: '精简文本',
+        variant: 'primary',
+        onClick: async (_stage, currentItem) => {
+          if (!currentItem.warning_content?.trim()) {
+            showToast('warning_content 为空，无法精简', 'error');
+            return;
+          }
+
+          try {
+            const result = await reduceOptimizeText(task.task_id, currentItem.warning_content);
+            handleConfirmContentChange(currentItem.index, result.reduced_text || '');
+            showToast('精简完成', 'success');
+          } catch (reduceError) {
+            console.error('精简文本失败:', reduceError);
+            showToast('精简文本失败，请重试', 'error');
+          }
+        },
+        disabled: (_stage, currentItem) => !currentItem.warning_content?.trim(),
+      });
+    }
+
+    return buttons;
+  };
+
   // 状态映射
   const statusText: Record<string, string> = {
     pending: '等待处理',
@@ -369,27 +435,76 @@ export default function ProgressModal({ task, onProgress, onComplete, onClose }:
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {selfCheckItems.map((item) => (
-                    <div key={item.index} className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">#{item.index} {item.check_point}（{item.issue || '无'}）</p>
-                        </div>
-                      </div>
+                  {selfCheckItems.map((item) => {
+                    const actionButtons = createSelfCheckActionButtons(selectedStage, item);
 
-                      <div className="grid gap-3 text-sm text-gray-700">
-                        <div>
-                          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">告警内容：{item.warning_content || '无'}</p>
-                          <textarea
-                            className="w-full min-h-24 rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            value={item.confirm_content || ''}
-                            onChange={(e) => handleConfirmContentChange(item.index, e.target.value)}
-                            placeholder="请输入确认或修正后的内容"
-                          />
+                    return (
+                      <div key={item.index} className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">#{item.index} {item.check_point}（{item.issue || '无'}）</p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 text-sm text-gray-700">
+                          <div>
+                            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">告警内容：{item.warning_content || '无'}</p>
+
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                              <textarea
+                                className="w-full min-h-24 rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                value={item.confirm_content || ''}
+                                onChange={(e) => handleConfirmContentChange(item.index, e.target.value)}
+                                placeholder="请输入确认或修正后的内容"
+                              />
+
+                              <div className="flex w-full flex-col gap-1 sm:w-28 sm:flex-shrink-0">
+                                {actionButtons.map((button) => {
+                                  const actionKey = buildSelfCheckActionKey(item.index, button.key);
+                                  const isActionLoading = Boolean(selfCheckActionLoadingMap[actionKey]);
+                                  const isActionDisabled = button.disabled ? button.disabled(selectedStage, item) : false;
+
+                                  return (
+                                    <Button
+                                      key={actionKey}
+                                      size="sm"
+                                      variant={button.variant || 'secondary'}
+                                      onClick={() => {
+                                        if (isActionLoading) {
+                                          return;
+                                        }
+
+                                        void (async () => {
+                                          setSelfCheckActionLoadingMap((currentMap) => ({
+                                            ...currentMap,
+                                            [actionKey]: true,
+                                          }));
+
+                                          try {
+                                            await button.onClick(selectedStage, item);
+                                          } finally {
+                                            setSelfCheckActionLoadingMap((currentMap) => ({
+                                              ...currentMap,
+                                              [actionKey]: false,
+                                            }));
+                                          }
+                                        })();
+                                      }}
+                                      disabled={isActionLoading || isActionDisabled}
+                                      loading={isActionLoading}
+                                      className="w-full px-2 py-1 text-xs leading-tight"
+                                    >
+                                      {button.label}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

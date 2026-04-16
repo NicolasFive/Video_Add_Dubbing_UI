@@ -71,6 +71,12 @@ export interface OptimizeUpdateResponse {
   message: string;
 }
 
+export interface OptimizeReduceResponse {
+  task_id: string;
+  original_text: string;
+  reduced_text: string;
+}
+
 export interface SelfCheckItem {
   index: number;
   check_point: string;

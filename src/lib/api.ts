@@ -7,6 +7,7 @@ import type {
   TaskListItemResponse,
   OptimizeDataResponse,
   OptimizeUpdateResponse,
+  OptimizeReduceResponse,
   SelfCheckResponse,
   CheckConfirmResponse,
   PipelineConfigResponse,
@@ -304,6 +305,29 @@ export async function submitCheckConfirm(
       },
     }
   );
+  return response.data;
+}
+
+/**
+ * 精简文本
+ */
+export async function reduceOptimizeText(
+  taskId: string,
+  text: string
+): Promise<OptimizeReduceResponse> {
+  const formData = new FormData();
+  formData.append('text', text);
+
+  const response = await apiClient.post<OptimizeReduceResponse>(
+    `/v1/optimize/reduce/${taskId}`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
   return response.data;
 }
 
